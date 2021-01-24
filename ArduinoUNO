@@ -1,35 +1,19 @@
 #include <EmonLib.h>
-#include <LiquidCrystal.h>
 
 
-// initialize the library with the numbers of the interface pins
-LiquidCrystal lcd(8, 9, 4, 5, 6, 7);
+
 // Create an instance
 EnergyMonitor emon1;
 
 int rede = 230.0; // Italia 230V  
-int buzzer = 3;
 unsigned long timestamp; 
 
 void setup()
 {
-  pinMode(buzzer,OUTPUT);
-  lcd.begin(16, 2);//Inizializzazione display
-  lcd.clear();
   Serial.begin(115200);   //Apro la comunicazione seriale
  
-  emon1.current(1, 12.0);             // Current: input pin, calibration.
+  emon1.current(1, 21);             // Current: input pin, calibration.
 
-  //Informazioni iniziali display
-  lcd.setCursor(0,0);
-  lcd.print("A:");
-  lcd.setCursor(10,0);
-  lcd.print("T:");
-  lcd.setCursor(0,1);
-  lcd.print("W:");  
-  lcd.setCursor(10,1);
-  lcd.print("U:");
-  timestamp = millis();
 }
 
 void loop()
@@ -37,88 +21,12 @@ void loop()
   if ((millis() - timestamp) > 999) {
     timestamp = millis();
     double Irms = emon1.calcIrms(1480);  // Calculate Irms only
-    lcd.setCursor(3,0);
-    lcd.print("      ");
-    if(Irms > 9) {
-      lcd.setCursor(3,0);
-      lcd.print(Irms);
-    }
-    else {
-      lcd.setCursor(4,0);
-      lcd.print(Irms);
-    }
-  
+   //Serial.println(Irms); 
+      
     int Watt = Irms*rede;
     //Invia a ESP8266 il valore della Corrente
-    Serial.print(Watt); // Irms
+    Serial.println(Watt); 
   
-    lcd.setCursor(3,1);
-    lcd.print("      ");
-
-    if (Watt <= 99) {
-      lcd.setCursor(5,1);
-      lcd.print(Watt); //Scrivo sul display Corrente*Tensione=Potenza  
-    }
-
-    if (Watt > 99 && Watt <= 999) {
-      lcd.setCursor(4,1);
-      lcd.print(Watt); //Scrivo sul display Corrente*Tensione=Potenza  
-    }
-
-    if (Watt > 999) {
-      lcd.setCursor(3,1);
-      lcd.print(Watt); //Scrivo sul display Corrente*Tensione=Potenza  
-    }
-
-// PRIMA SOGLIA CRITICA: Consumo tra 3,3KWh e 4KWh consumo elevato, tono intermittente   
-    if (Watt > 3300 && Watt < 4000) {
-      tone(buzzer,3000,200);
-    } 
-
-// SECONDA SOGLIA CRITICA: Consumo oltre 4KWh distacco imminente, tono continuo
-    if (Watt > 4000) {
-      tone(buzzer,3000);
-    } 
+  }
     
-// Consumo inferiore alla soglia di 3,300KWh nessun buzzer
-    if (Watt < 30) {
-      noTone(buzzer);
-    } 
-
-  }
- 
-  if(Serial.available()>0){
-    char inData[20] = "xxxxxxxxxxxxxxxxxxx"; // Allocate some space for the string
-    inData[0] = '\0';
-    char inChar = -1; // Where to store the character read
-    byte index = 0; // Index into array; where to store the character
-    delay(100); // to get all data in one shot
-
-    while (Serial.available() > 0) // Don't read unless there you know there is data
-    {  
-      if (index >= 20) // One less than the size of the array
-        break;
-      inChar = Serial.read(); // Read a character
-      if (inChar == '\r') // is \r\n
-        break;
-      inData[index] = inChar; // Store it
-      index++; // Increment where to write next
-      inData[index] = '\0'; // Null terminate the string
-    }  
-
-    String message = String(inData);
-    message.trim();
-
-    if (message.substring(0,1) == "T") {
-      String result = message.substring(1,message.length());
-      lcd.setCursor(12,0);
-      lcd.print(result); //Scrivo sul display la temperatura
-    }
-    if (message.substring(0,1) == "H") {
-      String result = message.substring(1,message.length());
-      lcd.setCursor(12,1);
-      lcd.print(result); //Scrivo sul display l'umidità
-    }
-  }
-     
 }
