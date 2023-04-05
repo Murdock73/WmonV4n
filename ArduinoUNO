@@ -1,25 +1,44 @@
 #include <EmonLib.h>
-
+#include <Adafruit_Sensor.h>
+#include <DHT.h>
 
 
 // Create an instance
 EnergyMonitor emon1;
 
 int rede = 230.0; // Italia 230V  
-unsigned long timestamp; 
+unsigned long timestampW; 
+unsigned long timestampD; 
+char temp_send[10];
+char hum_send[10];
+
+#define DHTPIN "D8"     // Digital pin connected to the DHT sensor
+#define DHTTYPE    DHT22     // DHT 22 (AM2302)
+DHT dht(8, DHTTYPE);
+
+// current temperature & humidity, updated in loop()
+float temp = 0.0;
+float hum = 0.0;
+
+const long intervalDHT = 3000;  
+const long intervalW = 60999;  
+
 
 void setup()
 {
   Serial.begin(115200);   //Apro la comunicazione seriale
  
-  emon1.current(1, 21);             // Current: input pin, calibration.
+  emon1.current(1, 17.5);             // Current: input pin, calibration.
+
+  dht.begin();
+  delay(100);
 
 }
 
 void loop()
 {
-  if ((millis() - timestamp) > 999) {
-    timestamp = millis();
+  if ((millis() - timestampW) > intervalW) {
+    timestampW = millis();
     double Irms = emon1.calcIrms(1480);  // Calculate Irms only
    //Serial.println(Irms); 
       
@@ -27,6 +46,22 @@ void loop()
     //Invia a ESP8266 il valore della Corrente
     Serial.println(Watt); 
   
+  }
+
+  if ((millis() - timestampD) > intervalDHT) {
+    // save the last time you updated the DHT values
+    timestampD = millis();
+    // Read temperature as Celsius (the default)
+    float temp = dht.readTemperature();
+    Serial.println(temp);
+    // Read Humidity
+    float hum = dht.readHumidity();
+    Serial.println(hum);
+    //String(temp).toCharArray(temp_send, 5);
+    //String(hum).toCharArray(hum_send, 3);
+    //Serial.println(temp_send);
+    //Serial.println(hum_send);
+
   }
     
 }
