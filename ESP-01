@@ -3,8 +3,6 @@
 #include <WiFiUdp.h>
 #include <PubSubClient.h>
 #include <ArduinoOTA.h>
-#include <Adafruit_Sensor.h>
-#include <DHT.h>
 
 // Connection parms
 #include <SSID.h>
@@ -16,28 +14,13 @@ PubSubClient client(espClient);
 String switch1;
 String strTopic;
 String strPayload;
-char watt_send[50];
-const char* soglia1 = "3300";
-const char* soglia2 = "3900";
+char watt_send[10];
 char temp_send[10];
 char hum_send[10];
 
-#define DHTPIN 0     // Digital pin connected to the DHT sensor
-#define DHTTYPE    DHT22     // DHT 22 (AM2302)
-DHT dht(DHTPIN, DHTTYPE);
-
-// current temperature & humidity, updated in loop()
-float temp = 0.0;
-float hum = 0.0;
-
-// Generally, you should use "unsigned long" for variables that hold time
-// The value will quickly become too large for an int to store
-unsigned long previousMillis = 0;    // will store last time DHT was updated
-
-// Updates DHT readings every 30 seconds
-const long interval = 30000;  
-
-
+bool watt = false;
+bool temp = false;
+bool hum = false;
 
 void setup_wifi() {
 
@@ -67,7 +50,9 @@ String readSerial()
   while (Serial.available() < 1)
     delay(100);
 
-  char inData[20] = "xxxxxxxxxxxxxxxxxxx"; // Allocate some space for the string
+  char inWAtt[4] = "xxxx"; // Allocate some space for the string
+  char inTemp[5] = "xxxxx"; // Allocate some space for the string
+  char inHum[5] = "xxxxx"; // Allocate some space for the string
   inData[0] = '\0';
   char inChar = -1; // Where to store the character read
   byte index = 0; // Index into array; where to store the character
@@ -79,6 +64,21 @@ String readSerial()
     inChar = Serial.read(); // Read a character
     if (inChar == '\r') // is \r\n
       break;
+    if (inChar == 'W') {
+      watt = true;
+      temp = false;
+      hum = false;
+    }
+    if (inChar == 'T') {
+      watt = false;
+      temp = true;
+      hum = false;
+    }
+    if (inChar == 'H') {
+      watt = false;
+      temp = false;
+      hum = true;
+    }
     inData[index] = inChar; // Store it
     index++; // Increment where to write next
     inData[index] = '\0'; // Null terminate the string
@@ -167,28 +167,6 @@ void loop()
   fromSerial.toCharArray(watt_send, fromSerial.length() + 1); //packaging up the data to publish to mqtt
   client.publish("sensor/Watt", watt_send);
   
-  delay(10);
-  unsigned long currentMillis = millis();
-  if (currentMillis - previousMillis >= interval) {
-    // save the last time you updated the DHT values
-    previousMillis = currentMillis;
-    // Read temperature as Celsius (the default)
-    float temp = dht.readTemperature();
-    //Serial.println(temp);
-    // Read Humidity
-    float hum = dht.readHumidity();
-    //Serial.println(hum);
-    String(temp).toCharArray(temp_send, 5);
-    String(hum).toCharArray(hum_send, 3);
-    //Serial.println(temp_send);
-    //Serial.println(hum_send);
-    client.publish("sensor/Temp", temp_send);
-    client.publish("sensor/Hum", hum_send);
-  }
 
-   if (currentMillis > 172800000) {
-     // reset ogni due giorni perchè oltre il sistema crasha.... 'tacci sua
-     ESP.restart(); 
-   }
 
 }
