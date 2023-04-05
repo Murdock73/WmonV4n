@@ -3,13 +3,12 @@
 #include <WiFiUdp.h>
 #include <PubSubClient.h>
 #include <ArduinoOTA.h>
+#include <Adafruit_Sensor.h>
+#include <DHT.h>
 
 // Connection parms
-const char* ssid = "";
-const char* password = "";
-const char* mqtt_server = "192.168.1.100";
-const char* MQTTuser = "";
-const char* MQTTpwd = "";
+#include <SSID.h>
+#include <emon.h>
 
 // PubSubClient Settings
 WiFiClient espClient;
@@ -18,9 +17,27 @@ String switch1;
 String strTopic;
 String strPayload;
 char watt_send[50];
+const char* soglia1 = "3300";
+const char* soglia2 = "3900";
+char temp_send[10];
+char hum_send[10];
 
-// Misc variables
-unsigned long timestamp; 
+#define DHTPIN 0     // Digital pin connected to the DHT sensor
+#define DHTTYPE    DHT22     // DHT 22 (AM2302)
+DHT dht(DHTPIN, DHTTYPE);
+
+// current temperature & humidity, updated in loop()
+float temp = 0.0;
+float hum = 0.0;
+
+// Generally, you should use "unsigned long" for variables that hold time
+// The value will quickly become too large for an int to store
+unsigned long previousMillis = 0;    // will store last time DHT was updated
+
+// Updates DHT readings every 30 seconds
+const long interval = 30000;  
+
+
 
 void setup_wifi() {
 
@@ -42,7 +59,6 @@ void setup_wifi() {
   Serial.println("WiFi connected");
   Serial.println("IP address: ");
   Serial.println(WiFi.localIP());
-  timestamp = millis();
 }
 
 
@@ -78,27 +94,6 @@ String readSerial()
 
 
 
-void callback(char* topic, byte* payload, unsigned int length) {
-  payload[length] = '\0';
-  strTopic = String((char*)topic);
-
-  if(strTopic == "sensor/Temp"){
-    switch1 = String((char*)payload);
-    String StringSend = "T";
-    StringSend.concat(switch1);
-    Serial.println(StringSend);
-  }
-
-  if(strTopic == "sensor/Humid"){
-    switch1 = String((char*)payload);
-    String StringSend = "H";
-    StringSend.concat(switch1);
-    Serial.println(StringSend);
-  }
-
-}
- 
- 
 void reconnect() {
   // Loop until we're reconnected
   while (!client.connected()) {
@@ -107,7 +102,6 @@ void reconnect() {
     if (client.connect("ESP8266_Emon", MQTTuser, MQTTpwd)) {
       Serial.println("connected");
       // Once connected, publish an announcement...
-      client.subscribe("sensor/#");
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());
@@ -123,13 +117,12 @@ void setup()
   Serial.begin(115200);
   setup_wifi(); 
   client.setServer(mqtt_server, 1883);
-  client.setCallback(callback);
 
   // Port defaults to 8266
   // ArduinoOTA.setPort(8266);
 
   // Hostname defaults to esp8266-[ChipID]
-  ArduinoOTA.setHostname("esp8266-EMON");
+  ArduinoOTA.setHostname("esp8266-WMON");
 
   // No authentication by default
   // ArduinoOTA.setPassword((const char *)"123");
@@ -156,6 +149,8 @@ void setup()
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
 
+  dht.begin();
+
 }
 
 void loop()
@@ -171,5 +166,29 @@ void loop()
   String fromSerial = readSerial();
   fromSerial.toCharArray(watt_send, fromSerial.length() + 1); //packaging up the data to publish to mqtt
   client.publish("sensor/Watt", watt_send);
+  
+  delay(10);
+  unsigned long currentMillis = millis();
+  if (currentMillis - previousMillis >= interval) {
+    // save the last time you updated the DHT values
+    previousMillis = currentMillis;
+    // Read temperature as Celsius (the default)
+    float temp = dht.readTemperature();
+    //Serial.println(temp);
+    // Read Humidity
+    float hum = dht.readHumidity();
+    //Serial.println(hum);
+    String(temp).toCharArray(temp_send, 5);
+    String(hum).toCharArray(hum_send, 3);
+    //Serial.println(temp_send);
+    //Serial.println(hum_send);
+    client.publish("sensor/Temp", temp_send);
+    client.publish("sensor/Hum", hum_send);
+  }
+
+   if (currentMillis > 172800000) {
+     // reset ogni due giorni perchè oltre il sistema crasha.... 'tacci sua
+     ESP.restart(); 
+   }
 
 }
