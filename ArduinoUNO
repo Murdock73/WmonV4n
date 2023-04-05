@@ -25,7 +25,7 @@ float temp = 0.0;
 float hum = 0.0;
 
 const long intervalDHT = 3000;  
-const long intervalW = 60999;  
+const long intervalW = 999;  
 
 
 void setup()
@@ -44,13 +44,10 @@ void loop()
   if ((millis() - timestampW) > intervalW) {
     timestampW = millis();
     double Irms = emon1.calcIrms(1480);  // Calculate Irms only
-   //Serial.println(Irms); 
-      
     int Watt = Irms*rede;
-    //Invia a ESP8266 il valore della Corrente
-    String watt = W + Watt;
-    Serial.println(watt); 
-  
+    String Values =  W + watt + T + temp + H + hum;
+    Serial.println(Values) 
+    
   }
 
   if ((millis() - timestampD) > intervalDHT) {
@@ -59,11 +56,7 @@ void loop()
     // Read temperature as Celsius (the default) and Humidity
     float temp = dht.readTemperature();
     float hum = dht.readHumidity();
-    //Serial.println(hum);
-    //Serial.println(temp);
-    String dht = T + temp + H + hum
-    Serial.println(dht);
-    
+            
   }
-    
+         
 }
