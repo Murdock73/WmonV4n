@@ -9,8 +9,12 @@ EnergyMonitor emon1;
 int rede = 230.0; // Italia 230V  
 unsigned long timestampW; 
 unsigned long timestampD; 
-char temp_send[10];
-char hum_send[10];
+char temp_send[5];
+char hum_send[5];
+string W = "W";
+string T = "T";
+String H = "H";
+
 
 #define DHTPIN "D8"     // Digital pin connected to the DHT sensor
 #define DHTTYPE    DHT22     // DHT 22 (AM2302)
@@ -44,24 +48,22 @@ void loop()
       
     int Watt = Irms*rede;
     //Invia a ESP8266 il valore della Corrente
-    Serial.println(Watt); 
+    String watt = W + Watt;
+    Serial.println(watt); 
   
   }
 
   if ((millis() - timestampD) > intervalDHT) {
     // save the last time you updated the DHT values
     timestampD = millis();
-    // Read temperature as Celsius (the default)
+    // Read temperature as Celsius (the default) and Humidity
     float temp = dht.readTemperature();
-    Serial.println(temp);
-    // Read Humidity
     float hum = dht.readHumidity();
-    Serial.println(hum);
-    //String(temp).toCharArray(temp_send, 5);
-    //String(hum).toCharArray(hum_send, 3);
-    //Serial.println(temp_send);
-    //Serial.println(hum_send);
-
+    //Serial.println(hum);
+    //Serial.println(temp);
+    String dht = T + temp + H + hum
+    Serial.println(dht);
+    
   }
     
 }
