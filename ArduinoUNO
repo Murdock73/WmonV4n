@@ -9,16 +9,8 @@ EnergyMonitor emon1;
 int rede = 230.0; // Italia 230V  
 unsigned long timestampW; 
 unsigned long timestampD; 
-char temp_send[5];
-char hum_send[5];
-string W = "W";
-string T = "T";
-String H = "H";
 
-
-#define DHTPIN "D8"     // Digital pin connected to the DHT sensor
-#define DHTTYPE    DHT22     // DHT 22 (AM2302)
-DHT dht(8, DHTTYPE);
+DHT dht(8, "DHT22");
 
 // current temperature & humidity, updated in loop()
 float temp = 0.0;
@@ -45,7 +37,13 @@ void loop()
     timestampW = millis();
     double Irms = emon1.calcIrms(1480);  // Calculate Irms only
     int Watt = Irms*rede;
-    String Values =  W + watt + T + temp + H + hum;
+    String Values; 
+    Values += F("W");
+    Values += String(Watt);
+    Values += F("T");
+    Values += String(temp, 2);
+    Values += F("H");
+    Values += String(hum, 2);
     Serial.println(Values) 
     
   }
