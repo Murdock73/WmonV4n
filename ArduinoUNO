@@ -10,14 +10,16 @@ int rede = 230.0; // Italia 230V
 unsigned long timestampW; 
 unsigned long timestampD; 
 
-DHT dht(8, "DHT22");
+DHT dht(8, DHT22);
 
 // current temperature & humidity, updated in loop()
 float temp = 0.0;
 float hum = 0.0;
+char temp_send[5];
+char hum_send[5];
 
 const long intervalDHT = 3000;  
-const long intervalW = 999;  
+const long intervalW = 3000;  
 
 
 void setup()
@@ -41,10 +43,10 @@ void loop()
     Values += F("W");
     Values += String(Watt);
     Values += F("T");
-    Values += String(temp, 2);
+    Values += temp_send;
     Values += F("H");
-    Values += String(hum, 2);
-    Serial.println(Values) 
+    Values += hum_send;
+    Serial.println(Values); 
     
   }
 
@@ -54,6 +56,10 @@ void loop()
     // Read temperature as Celsius (the default) and Humidity
     float temp = dht.readTemperature();
     float hum = dht.readHumidity();
+    Serial.println(temp);
+    Serial.println(hum);
+    String(temp).toCharArray(temp_send, 5);
+    String(hum).toCharArray(hum_send, 5);
             
   }
          
