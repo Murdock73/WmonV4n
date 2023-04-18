@@ -1,0 +1,139 @@
+#include <EmonLib.h>
+#include <ESP8266WiFi.h>
+#include <ESP8266mDNS.h>
+#include <WiFiUdp.h>
+#include <PubSubClient.h>
+#include <ArduinoOTA.h>
+#include <Adafruit_Sensor.h>
+#include <DHT.h>
+
+// Connection parms
+#include <SSID.h>
+#include <emon.h>
+
+// PubSubClient Settings
+WiFiClient espClient;
+PubSubClient client(espClient);
+
+// Create an instance
+EnergyMonitor emon1;
+
+int rede = 230.0; // Italia 230V  
+unsigned long timestampW; 
+unsigned long timestampD; 
+
+DHT dht(D1, DHT22);
+
+// current temperature & humidity, updated in loop()
+float temp = 0.0;
+float hum = 0.0;
+char watt_send[5];
+char temp_send[5];
+char hum_send[5];
+
+const long intervalDHT = 60000;  
+const long intervalW = 2000;  
+
+#include <setup_wifi.h>
+
+void reconnect() {
+  // Loop until we're reconnected
+  while (!client.connected()) {
+    Serial.print("Attempting MQTT connection...");
+    // Attempt to connect
+    if (client.connect("ESP8266_Emon", MQTTuser, MQTTpwd)) {
+      Serial.println("connected");
+      // Once connected, publish an announcement...
+    } else {
+      Serial.print("failed, rc=");
+      Serial.print(client.state());
+      Serial.println(" try again in 5 seconds");
+      // Wait 5 seconds before retrying
+      delay(5000);
+    }
+  }
+}
+
+
+void setup()
+{
+  Serial.begin(9600);   //Apro la comunicazione seriale
+
+  setup_wifi(); 
+  client.setServer(mqtt_server, 1883);
+
+  // Port defaults to 8266
+  // ArduinoOTA.setPort(8266);
+
+  // Hostname defaults to esp8266-[ChipID]
+  ArduinoOTA.setHostname("esp8266-WMON");
+
+  // No authentication by default
+  ArduinoOTA.setPassword((const char *)"123");
+
+  ArduinoOTA.onStart([]() {
+    Serial.println("Start");
+  });
+  ArduinoOTA.onEnd([]() {
+    Serial.println("\nEnd");
+  });
+  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+    Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+  });
+  ArduinoOTA.onError([](ota_error_t error) {
+    Serial.printf("Error[%u]: ", error);
+    if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
+    else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
+    else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
+    else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
+    else if (error == OTA_END_ERROR) Serial.println("End Failed");
+  });
+  ArduinoOTA.begin();
+  Serial.println("Ready");
+  Serial.print("IP address: ");
+  Serial.println(WiFi.localIP());
+
+  emon1.current(A0, 250.0);             // Current: input pin, calibration.
+
+  dht.begin();
+  delay(100);
+
+}
+
+void loop()
+{
+
+  ArduinoOTA.handle();
+  if (!client.connected()) {
+    reconnect();
+  }
+  client.loop();
+
+  if ((millis() - timestampW) > intervalW) {
+    timestampW = millis();
+    double Irms = emon1.calcIrms(1480);  // Calculate Irms only
+    int Watt = Irms*rede;
+    String(Watt).toCharArray(watt_send, 5);
+    Serial.println(watt_send);
+    client.publish("sensor/Watt", watt_send);
+    
+  }
+
+  if ((millis() - timestampD) > intervalDHT) {
+    // save the last time you updated the DHT values
+    timestampD = millis();
+    // Read temperature as Celsius (the default) and Humidity
+    float temp = dht.readTemperature();
+    float hum = dht.readHumidity();
+    Serial.println(temp);
+    Serial.println(hum);
+    String(temp).toCharArray(temp_send, 5);
+    String(hum).toCharArray(hum_send, 5);
+    Serial.println(temp_send);
+    Serial.println(hum_send);
+    client.publish("sensor/Temp", temp_send);
+    client.publish("sensor/Hum", hum_send);
+            
+  }
+         
+}
